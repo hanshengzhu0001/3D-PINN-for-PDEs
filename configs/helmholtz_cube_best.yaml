@@ -1,0 +1,66 @@
+# Helmholtz equation on unit cube - BEST (<1% target)
+# Aggressive training for maximum accuracy, low-frequency regime
+
+# Domain
+domain:
+  bounds: [[0.0, 1.0], [0.0, 1.0], [0.0, 1.0]]  # Unit cube
+
+# PDE parameters - LOW frequency (proven range)
+pde:
+  k_train_min: 3.141592653589793   # 1*pi
+  k_train_max: 6.283185307179586   # 2*pi
+  n_k_train: 4  # 4 k values
+
+# Source term (Gaussian) - Smooth and centered
+source:
+  center: [0.5, 0.5, 0.5]  # Centered (symmetric)
+  width: 0.15              # Wide (smooth solution)
+  amplitude: 1.0
+
+# Network architecture (SIREN) - LARGER for <1% target
+network:
+  hidden_layers: 8         # Increased from 6 (more capacity)
+  width: 192               # Increased from 128 (optimal size)
+  activation: "sine"
+  omega_0: 10.0            # Low frequency focus
+
+# Sampling - INCREASED for better accuracy
+sampling:
+  n_interior: 65536   # 2^16 (4x more than easy)
+  n_boundary: 8192    # 2^13 (4x more)
+  seed: 42
+
+# Loss weights - ADJUSTED for better balance
+loss:
+  boundary_weight: 50.0   # Reduced from 100 (less boundary-dominant)
+  residual_weight: 1.0
+
+# Training - AGGRESSIVE for <1% target
+adam:
+  steps: 40000        # 2x more than easy (thorough training)
+  learning_rate: 1.0e-3
+  lr_min: 1.0e-5
+  gradient_clip: 1.0
+
+# Training - Stage B: L-BFGS (EXTENDED polish)
+lbfgs:
+  max_iterations: 3000  # 3x more than easy (thorough polish)
+  tolerance: 1.0e-10
+  history_size: 10
+
+# Validation (Finite Difference)
+validation:
+  grid_size: 49  # Higher resolution for accurate validation
+  tolerance_l2_error: 0.01  # <1% target
+  tolerance_boundary_error: 1.0e-4
+  tolerance_median_residual: 1.0e-4
+
+# Checkpointing
+checkpoints:
+  directory: "checkpoints"
+  save_frequency: 2000
+
+# API
+api:
+  port: 8000
+  query_timeout: 0.3
