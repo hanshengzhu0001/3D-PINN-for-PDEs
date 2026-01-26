@@ -2,6 +2,8 @@
 
 Physics-Informed Neural Networks solving 3D PDEs on the unit cube with Dirichlet boundary conditions.
 
+**GitHub**: https://github.com/hanshengzhu0001/3D-PINN-for-PDEs
+
 ## ✅ VERIFIED RESULTS
 
 ### 3D Poisson Equation (BENCHMARK)
