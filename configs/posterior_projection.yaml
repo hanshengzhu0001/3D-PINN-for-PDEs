@@ -1,0 +1,87 @@
+study_name: final_project_projection_posterior
+
+problem:
+  family: nonlinear_elliptic
+  equation: "-Delta v + kappa v^3 = u"
+  kappa: 50.0
+  nx: 63
+  domain_length: 1.0
+  reference_oracle_backend: chonkdiff
+  reference_dataset_path: data/chonkdiff_elliptic_dataset.npz
+  bootstrap_checkpoint: null
+  forcing_period_length: 0.5
+  forcing_lengthscale: 10.0
+  forcing_jitter: 1.0e-10
+
+posterior:
+  mode: partial_observation
+  observed_fraction: 0.1
+  observation_noise_std: 0.0
+  observation_pattern: random_mask
+  seed: 7
+
+model:
+  hidden_channels: 64
+  num_fno_layers: 4
+  modes: 16
+  time_embedding_dim: 64
+  mlp_channels: 128
+
+training:
+  batch_size: 64
+  epochs: 80
+  seed: 1234
+  learning_rate: 2.0e-4
+  weight_decay: 1.0e-4
+  gradient_clip: 1.0
+  num_workers: 0
+  checkpoint_dir: outputs/posterior_projection
+  max_train_samples: null
+  max_val_samples: null
+  log_every: 1
+
+sampling:
+  num_steps: 100
+  observation_guidance_strength: 2.5e-1
+
+projection:
+  schedules:
+    - none
+    - final_only
+    - every_step
+    - every_2
+    - every_5
+    - late_only
+    - adaptive_residual
+  orders:
+    - first_order
+    - gauss_newton
+  late_start_fraction: 0.7
+  adaptive_warmup_fraction: 0.5
+  adaptive_residual_threshold: 1.0e-2
+  first_order_lambda: 1.0e-6
+  second_order_lambda_init: 1.0e-4
+  second_order_lambda_min: 1.0e-10
+  second_order_lambda_max: 1.0e8
+  second_order_lambda_decay: 0.5
+  second_order_lambda_inflate: 10.0
+  second_order_alpha_init: 1.0
+  second_order_alpha_decay: 0.5
+  second_order_min_alpha: 1.0e-6
+  second_order_line_search_steps: 8
+  max_projection_steps: 6
+  final_cleanup: true
+  final_cleanup_iterations: 8
+  final_cleanup_tolerance: 1.0e-10
+
+evaluation:
+  metrics:
+    - posterior_quality
+    - physical_consistency
+    - runtime
+    - trajectory_stability
+  oracle_relative_error: true
+  num_eval_samples: 128
+  num_observation_seeds: 3
+  observation_seed_base: 17
+  sample_seed_base: 123

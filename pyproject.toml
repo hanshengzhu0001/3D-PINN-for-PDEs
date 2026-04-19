@@ -1,13 +1,14 @@
 [project]
 name = "pinn3d"
 version = "0.1.0"
-description = "3D PINN for Helmholtz equation on unit cube"
+description = "Scientific ML experiments: legacy 3D PINNs and diffusion-guided nonlinear elliptic solvers"
 requires-python = ">=3.12"
 dependencies = [
     "jax==0.9.0",
     "equinox==0.13.2",
     "fastapi==0.124.0",
     "pyngrok==7.5.0",
+    "torch",
     "uvicorn",
     "optax",
     "numpy",
@@ -20,3 +21,9 @@ dependencies = [
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -2,6 +2,7 @@ jax==0.9.0
 equinox==0.13.2
 fastapi==0.124.0
 pyngrok==7.5.0
+torch
 uvicorn
 optax
 numpy

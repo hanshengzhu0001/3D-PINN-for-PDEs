@@ -1,0 +1,2524 @@
+DiffusionPDE: Generative PDE-Solving
+Under Partial Observation
+
+arXiv:2406.17763v2 [cs.LG] 1 Nov 2024
+
+Jiahe Huang1
+
+Guandao Yang2 Zichen Wang1 Jeong Joon Park1
+1
+University of Michigan
+2
+Stanford University
+{chloehjh, zzzichen, jjparkcv}@umich.edu
+guandao@stanford.edu
+
+Abstract
+We introduce a general framework for solving partial differential equations (PDEs)
+using generative diffusion models. In particular, we focus on the scenarios where
+we do not have the full knowledge of the scene necessary to apply classical solvers.
+Most existing forward or inverse PDE approaches perform poorly when the observations on the data or the underlying coefficients are incomplete, which is a
+common assumption for real-world measurements. In this work, we propose DiffusionPDE that can simultaneously fill in the missing information and solve a PDE by
+modeling the joint distribution of the solution and coefficient spaces. We show that
+the learned generative priors lead to a versatile framework for accurately solving
+a wide range of PDEs under partial observation, significantly outperforming the
+state-of-the-art methods for both forward and inverse directions. See our project
+page for results: jhhuangchloe.github.io/Diffusion-PDE/.
+
+1
+
+Introduction
+
+Partial differential equations (PDEs) are a cornerstone of modern science, underpinning many
+contemporary physical theories that explain natural phenomena. The ability to solve PDEs grants
+us the power to predict future states of a system (forward process) and estimate underlying physical
+properties from state measurements (inverse process).
+To date, numerous methods [1, 2] have been proposed to numerically solve PDEs for both the
+forward and inverse directions. However, the classical methods can be prohibitively slow, prompting
+the development of data-driven, learning-based solvers that are significantly faster and capable of
+handling a family of PDEs. These learning-based approaches [3–6] typically learn a deterministic
+mapping between input coefficients and their solutions using deep neural networks.
+Despite the progress, existing learning-based approaches, much like classical solvers, rely on complete
+observations of the coefficients to map solutions. However, complete information on the underlying
+physical properties or the state of a system is rarely accessible; in reality, most measurements are
+sparse in space and time. Both classical solvers and the state-of-the-art data-driven models often
+overlook these scenarios and consequently fail when confronted with partial observations. This
+limitation confines their use primarily to synthetic simulations, where full scene configurations are
+available by design, making their application to real-world cases challenging.
+We present a comprehensive framework, DiffusionPDE, for solving PDEs in both forward and
+inverse directions under conditions of highly partial observations—typically just 1~3% of the total
+information. This task is particularly challenging due to the numerous possible ways to complete
+missing data and find subsequent solutions. Our approach uses a generative model to formulate the
+joint distribution of the coefficient and solution spaces, effectively managing the uncertainty and
+simultaneously reconstructing both spaces. During inference, we sample random noise and iteratively
+38th Conference on Neural Information Processing Systems (NeurIPS 2024).
+
+Training
+Diffusion Model
+
+Joint Distribution
+
+Predictions
+
+(on both a and u)
+Generated a
+
+Coefficient/Initial State: a Solution/Final State: u
+
+...
+
+...
+
+...
+
+Observations
+
+
+Inference
+
+(on either side or both)
+
+Diffusion Model
+
+Sparse Ground Truth a Sparse Ground Truth u
+
+Generated u
+
+PDE Guidance
+
+Noise
+
+Observation Guidance
+
+Figure 1: We propose DiffusionPDE, a generative PDE solver under partial observations. Given
+a family of PDE with coefficient (initial state) a and solution (final state) u, we train the diffusion
+model on the joint distribution of a and u. During inference, we gradually denoise a Gaussian noise,
+guided by sparse observation and known PDE function, to recover the full prediction of both a and u
+that align well with the sparse observations and the given equation.
+
+denoise it following standard diffusion models [7]. However, we uniquely guide this denoising
+process with sparse observations and relevant PDE constraints, generating plausible outputs that
+adhere to the imposed constraints. Notably, DiffusionPDE can handle observations with arbitrary
+density and patterns with a single pre-trained generative network.
+We conduct extensive experiments to show the versatility of DiffusionPDE as a general PDE-solving
+framework. We evaluate it on a diverse set of static and temporal PDEs, including Darcy Flow,
+Poisson, Helmholtz, Burger’s, and Navier-Stokes equations. DiffusionPDE significantly outperforms
+existing state-of-the-art learning-based methods for solving PDEs [3–6, 8] in both forward and inverse
+directions with sparse measurements, while achieving comparable results with full observations.
+Highlighting the effectiveness of our model, DiffusionPDE accurately reconstructs the complete state
+of Burgers’ equation using time-series data from just five sensors (Fig. 4), suggesting the potential of
+generative models to revolutionize physical modeling in real-world applications.
+
+2
+
+Related Works
+
+Our work builds on the extensive literature of three areas: forward PDE solvers, inverse PDE solvers,
+and diffusion models. Please see relevant surveys for more information [9–13].
+Forward PDE Solvers. PDE solvers take the specification of a physics system and predict its state
+in unseen space and time by solving an equation involving partial derivatives. Since Most PDEs
+are very challenging to solve analytically, people resolve to numerical techniques, such as Finite
+Element Method [14, 2] and Boundary Element Method [1, 15]. While these techniques show strong
+performance and versatility in some problems, they can be computationally expensive or difficult
+to set up for complex physics systems. Recently, advancements in deep-learning methods have
+inspired a new set of PDE solvers. Raissi et al. [16, 6] introduce Physics-Informed Neural Networks
+(PINNs), which optimize a neural network using PDE constraints as self-supervised losses to output
+the PDE solutions. PINNs have been extended to solving specific fluid [17, 18], Reynolds-averaged
+Navier–Stokes equations [19], heat equations [20], and dynamic power systems [21]. While PINNs
+can tackle a wide range of complex PDE problems, they are difficult to scale due to the need for
+network optimization. An alternative approach, neural operators [3, 5], directly learn the mapping
+from PDE parameters (e.g.initial and boundary condition) to the solution function. Once trained, this
+method avoids expensive network optimization and can instantly output the solution result. This idea
+2
+
+has been extended to solve PDE in 3D [22, 23] , multiphase flow [24], seismic wave [25, 26], 3D
+turbulence [27, 28], and spherical dynamics [29]. People have also explored using neural networks as
+part of the PDE solver, such as compressing the physics state [30–33]. These solvers usually assume
+known PDE parameters, and applying them to solve the inverse problem can be challenging.
+PDE inverse problem. The inverse problem refers to finding the coefficients of a PDE that can
+induce certain observations, mapping from the solution of a PDE solver to its input parameters.
+People have tried to extend traditional numerical methods to this inverse problem [34–38], but these
+extensions are non-trivial to implement efficiently. There are similar attempts to inverse deep-learning
+PDE solvers. For example, one can inverse PINNs by optimizing the network parameters such
+that their outputs satisfy both the observed data and the governing equations. iFNO [39] and NIO
+[40] tries to extend FNO [3]. Other methods [41, 42] directly learn the operator functions for the
+inverse problem. PINO [4] further combines neural operators with physics constraints to improve
+the performance of both forward and inverse problems. These methods assume full observations are
+available. To address the inverse problem with partial observations, people have tried to leverage
+generative priors with Graph neural networks [43, 8]. These works have not demonstrated the ability
+to solve high-resolution PDEs, possibly limited by the power of generative prior. We want to leverage
+the state-of-the-art generative model, diffusion models, to develop a better inverse PDE solver.
+Diffusion models. Diffusion models have shown great promise in learning the prior with higher
+resolutions by progressively estimating and removing noise. Models like DDIM [44], DDPM [7], and
+EDM [45] offer expressive generative capabilities but face challenges when sampling with specific
+constraints. Guided diffusion models [46–49] enhance generation processes with constraints such
+as image inpainting, providing more stable and accurate solutions. Prior works on diffusion models
+for PDEs highlight the potential of diffusion approaches by generating PDE datasets such as 3D
+turbulence [50, 51] and Navier-Stokes equations [52] with diffusion models. Diffusion models can
+also be used to model frequency spectrum and denoise the solution space [53], and conditional
+diffusion models are applied to solve 2D flows with sparse observation [54]. However, the application
+of diffusion models to solve inverse problems under partial observation remains underexplored. In
+this work, we aim to take the initial steps towards addressing this gap.
+
+3
+
+Methods
+
+3.1
+
+Overview
+
+To solve physics-informed forward and inverse problems under uncertainty, we start by pre-training a
+diffusion generative model on a family of partial differential equations (PDEs). This model is designed
+to learn the joint distribution of the PDE coefficients (or the initial state) and its corresponding
+solutions (or the final state). Our approach involves recovering full data in both spaces using
+sparse observations from either or both sides. We achieve this through the iterative denoising of
+random Gaussian noise as in regular diffusion models but with additional guidance from the sparse
+observations and the PDE function enforced during denoising. The schematic description of our
+approach is shown in Fig. 1.
+3.2
+
+Prelimary: Diffusion Models and Guided Diffusion
+
+Diffusion models involve a predefined forward process that gradually adds Gaussian noise to the
+data and a learned reverse process that denoises the data to reconstruct the original distribution.
+Specifically, Song et al. [55] propose a deterministic diffusion model that learns an N -step denoising
+process that eventually outputs a denoised data xN and satisfies the following ordinary differential
+equations (ODE) at each timestep ti where i ∈ {0, 1, ..., N − 1}
+
+dx = −σ̇(t)σ(t)∇x log p x; σ(t) dt.
+(1)
+
+Here ∇x log p x; σ(t) is the score function [56] that helps to transform samples from a normal
+distribution N (0, σ(t0 )2 I) to a target probability distribution p(x; σ(t)). To estimate the score
+function, Karras et al. [45] propose to learn a denoiser function D(x; σ) such that
+
+∇x log p x; σ(t) = (D(x; σ(t)) − x)/σ(t)2
+(2)
+To enable control over the generated data, guided diffusion methods [48] add guidance gradients to
+the score function during the denoising process. Recently, diffusion posterior sampling (DPS) [46]
+3
+
+Algorithm 1 Sparse Observation and PDE Guided Diffusion Sampling Algorithm.
+1: input DeterministicSampler Dθ (x; σ), σ(ti∈{0,...,N } ), TotalPointCount m, ObservedPointCount
+
+n, Observation y, PDEFunction
+ f , Weights ζobs , ζpde
+
+2: sample x0 ∼ N 0, σ(t0 )2 I
+3: for i ∈ {0, . . . , N − 1} do
+4:
+x̂iN ← Dθ (xi ; σ(t
+ i ))
+5:
+di ← xi − x̂iN /σ(ti )
+6:
+xi+1 ← xi + (σ(ti+1 ) − σ(ti ))di
+7:
+if σ(ti+1 ) ̸= 0 then
+8:
+x̂iN ← Dθ (xi+1 ; σ(t
+ i+1 ))
+9:
+d′i ← xi+1 − x̂iN /σ(ti+1 )
+10:
+xi+1 ← xi + (σ(ti+1 ) − σ(ti ))
+11:
+end if
+12:
+Lobs ← n1 ∥y − x̂iN ∥22
+
+▷ Generate initial sampling noise
+
+▷ Estimate the denoised data at step ti
+▷ Evaluate dx/dσ(t) at step ti
+▷ Take an Euler step from σ(ti ) to σ(ti+1 )
+▷ Apply 2nd order correlation unless σ = 0
+▷ Evaluate dx/dσ(t) at step ti+1
+
+1 ′
+1
+d
++
+d
+▷
+Apply
+the trapezoidal rule at step ti+1
+2 i
+2 i
+
+1
+Lpde ← m
+∥0 − f (x̂iN )∥22
+xi+1 ← xi+1 − ζobs ∇xi Lobs − ζpde ∇xi Lpde
+
+13:
+14:
+15: end for
+16: return xN
+
+▷ Evaluate the observation loss of x̂iN
+▷ Evaluate the PDE loss of x̂iN
+▷ Guide the sampling with Lobs and Lpde
+▷ Return the denoised data
+
+made notable progress in guided diffusion for tackling various inverse problems. DPS uses corrupted
+measurements y derived from x to guide the diffusion model in outputting the posterior distribution
+p(x|y). A prime application of DPS is the inpainting problem, which involves recovering a complete
+image from sparsely observed pixels, which suits well with our task. This approach modifies Eq. 1 to
+
+
+dx = −σ̇(t)σ(t) ∇x log p x; σ(t) + ∇x log p y|x; σ(t) dt.
+(3)
+DPS [46] showed that under Gaussian noise assumption of the sparse measurement operator M(·),
+i.e., y|x ∼ N (M(x), δ 2 I) with some S.D. δ, the log-likelihood function can be approximated with:
+
+
+1
+∇x log p y|xi ; σ(ti ) ≈ ∇xi log p y|x̂iN ; σ(ti ) ≈ − 2 ∇xi ∥y − M(x̂iN (xi ; σ(ti ))∥22 , (4)
+δ
+where x̂iN := D(xi ; σ(ti )) denotes the estimation of the final denoised data at each denoising step i.
+Applying the Baye’s rule, the gradient direction of the guided diffusion is therefore:
+∇xi log p(xi |y) ≈ s(xi ) − ζ∇xi ∥y − M(x̂iN )∥22 ,
+
+where s(x) = ∇x log p x is the original score function, and ζ = 1/δ 2 .
+3.3
+
+(5)
+
+Solving PDEs with Guided Diffusion
+
+Our work focuses on two classes of PDEs: static PDEs and dynamic time-dependent PDEs. Static
+systems (e.g., Darcy Flow or Poisson equations) are defined by a time-independent function f :
+(6)
+f (c; a, u) = 0 in Ω ⊂ Rd ,
+u(c) = g(c) in ∂Ω,
+where Ω is a bounded domain, c ∈ Ω is a spatial coordinate, a ∈ A is the PDE coefficient field,
+and u ∈ U is the solution field. ∂Ω is the boundary of the domain Ω and u|∂Ω = g is the boundary
+constraint. We aim to recover both a and u from sparse observations on either a or u or both.
+Similarly, we consider the dynamic systems (e.g., Navier-Stokes):
+f (c, τ ; a, u) = 0,
+in Ω × (0, ∞)
+u(c, τ ) = g(c, τ ),
+in ∂Ω × (0, ∞)
+u(c, τ ) = a(c, τ ),
+
+(7)
+
+in Ω̄ × {0}
+
+where τ is a temporal coordinate, a = u0 ∈ A is the initial condition, u is the solution field, and
+u|Ω×(0,∞) = g is the boundary constraint. We aim to simultaneously recover both a and the solution
+uT := u(·, T ) at a specific time T from sparse observations on either a, uT , or both.
+Finally, we explore the recovery of the states across all timesteps u0:T in 1D dynamic systems
+governed by Burger’s equation. Our network Dθ models the distribution of all 1D states, including
+the initial condition u0 and solutions u1:T stacked in the temporal dimension, forming a 2D dataset.
+4
+
+Sparse Observations on  
+Solutions
+
+Sparse Observations on Both
+Coefficients and Solutions
+
+Error Rate: 2.8%
+
+Error Rate: 3.2%
+
+Error Rate: 2.6%
+
+Relative Error: 2.5%
+
+Relative Error: 1.0%
+
+Relative Error: 0.9%
+
+Ground Truth
+
+Partial Observations
+
+Recovered Solutions
+
+Recovered Coefficients
+
+Sparse Observations on
+Coefficients
+
+Figure 2: Different from forward and inverse PDE solvers, DiffusionPDE can take sparse observations
+on either the coefficient a or the solution u to recover both of them, using one trained network. Here,
+we show the recovered a and u of the Darcy’s eqaution given sparse observations on a, u, or both.
+Compared with the ground truth, we see that our method successfully recovers the PDE in all cases.
+
+Guided Diffusion Algorithm In the data-driven PDE literature, the above tasks can be achieved by
+learning directional mappings between a and u (or uT for dynamic systems). Thus, existing methods
+typically train separate neural networks for the forward solution operator F : A → U and the inverse
+solution operator I : U → A.
+Our method unifies the forward and inverse operators with a single network and an algorithm using
+the guided diffusion framework. DiffusionPDE can handle arbitrary sparsity patterns with one
+pre-trained diffusion model Dθ that learns the joint distribution of A and U, concatenated on the
+channel dimension, denoted X . Thus, our data x ∈ X , where X := A × U. We follow the typical
+diffusion model procedures [45] to train our model on a family of PDEs.
+Once we train the diffusion model Dθ , we employ our physics-informed DPS [46] formulation during
+inference to guide the sampling of x ∈ X that satisfies the sparse observations and the given PDE, as
+detailed in Algorithm 1. We follow Eq. 5 to modify the score function using the two guidance terms:
+∇xi log p(xi |y obs , f ) ≈ ∇xi log p xi ) − ζobs ∇xi Lobs − ζpde ∇xi Lpde ,
+
+(8)
+
+where xi is the noisy data at denoising step i, y obs are the observed values, and f (·) = 0 is
+the underlying PDE condition. Lobs and Lpde respectively represent the MSE loss of the sparse
+observations and the PDE equation residuals:
+Lobs (xi , y obs ; Dθ ) =
+
+n
+1
+1X
+∥y obs − x̂iN ∥22 =
+(y (oj ) − x̂iN (oj ))2 ,
+n
+n j=1 obs
+
+Lpde (xi ; Dθ , f ) =
+
+1
+1 XX
+∥0 − f (x̂iN )∥22 =
+f (cj , τk ; ûj , âj )2 ,
+m
+m j
+
+(9)
+
+k
+
+where x̂iN = Dθ (xi ) is the clean image estimate at denoising timestep i, which can be split into
+coefficient ûi and solution âi . Here, m is the total number of grid points (i.e., pixels), n is the number
+of sparse observation points. oj represents the spatio-temporal coordinate of jth observation. Note
+that, without loss of generality, Lpde can be accumulated for all applicable PDE function f in the
+system, and the time component τk is ignored for static systems.
+
+4
+
+Experiments
+
+4.1
+
+PDE Problem Settings
+
+We show the usefulness of DiffusionPDE across various PDEs for inverse and forward problems and
+compare it against recent learning-based techniques. We test on the following families of PDEs.
+5
+
+Guided with 
+Observation Loss
+
+Ground Truth
+
+Solution
+
+Coefficient Absolute Error
+
+Coefficient
+
+Guided with PDE Loss 
+and Observation Loss
+
+Guided with PDE Loss 
+and Observation Loss
+
+Solution Absolute Error
+
+Guided with 
+Observation Loss
+
+Ground Truth
+
+Figure 3: Usefulness of PDE loss. We visualize the absolute errors of the recovered coefficient and
+solution of the Helmholtz equation with and w/o PDE loss. We compare having only the observation
+loss with applying the additional PDE loss. The errors drop significantly when using PDE loss.
+Darcy Flow. Darcy flow describes the movement of fluid through a porous medium. In our
+experiment, we consider the static Darcy Flow with a no-slip boundary ∂Ω
+−∇ · (a(c)∇u(c)) = q(c),
+u(c) = 0,
+
+c∈Ω
+c ∈ ∂Ω
+
+(10)
+
+Here the coefficient a has binary values. We set q(c) = 1 for constant force. The PDE guidance
+function is thus f = ∇ · (a(c)∇u(c)) + q(c).
+Inhomogeneous Helmholtz Equation. We consider the static inhomogeneous Helmholtz Equation
+with a no-slip boundary on ∂Ω, which describes wave propagation:
+∇2 u(c) + k 2 u(c) = a(c),
+u(c) = 0,
+
+c∈Ω
+c ∈ ∂Ω
+
+(11)
+
+The coefficient a is a piecewise constant function and k is a constant. Note 11 is the Poisson
+equation when k = 0. Setting k = 1 for Helmholtz equations, the PDE guidance function is
+f = ∇2 u(c) + k 2 u(c) − a(c).
+Non-bounded Navier-Stokes Equation. We study the non-bounded incompressive Navier-Stokes
+equation regarding the vorticity.
+∂t w(c, τ ) + v(c, τ ) · ∇w(c, τ )= ν∆w(c, τ ) + q(c), c ∈ Ω, τ ∈ (0, T ]
+∇ · v(c, τ ) = 0,
+c ∈ Ω, τ ∈ [0, T ]
+
+(12)
+
+Here w = ∇ × v is the vorticity, v(c, τ ) is the velocity at c at time τ , and q(c) is a force field. We
+set the viscosity coefficient ν = 10−3 and correspondingly the Reynolds number Re = ν1 = 1000.
+DiffusionPDE learns the joint distribution of w0 and wT and we take T = 10 which simulates
+1 second. Since T ≫ 0, we cannot accurately compute the PDE loss from our model outputs.
+Therefore, given that ∇ · w(c, τ ) = ∇ · (∇ × v) = 0, we use simplified f = ∇ · w(c, τ ).
+Bounded Navier-Stokes Equation. We study the bounded 2D imcompressive Navier Stokes
+regarding the velocity v and pressure p.
+1
+c ∈ Ω, τ ∈ (0, T ]
+∂t v(c, τ ) + v(c, τ ) · ∇v(c, τ ) + ∇p = ν∇2 v(c, τ ),
+ρ
+(13)
+∇ · v(c, τ ) = 0,
+c ∈ Ω, τ ∈ (0, T ].
+We set the viscosity coefficient ν = 0.001 and the fluid density ρ = 1.0. We generate 2D cylinders
+of random radius at random positions inside the grid. Random turbulence flows in from the top of the
+grid, with the velocity field satisfying no-slip boundary conditions at the left and right edges, as well
+as around the cylinder ∂Ωlef t,right,cylinder . DiffusionPDE learns the joint distribution of v0 and vT
+at T = 4, which simulates 0.4 seconds. Therefore, we similarly use f = ∇ · v(c, τ ) as before.
+Burgers’ Equation. We study the Burgers’ equation with periodic boundary conditions on a 1D
+spatial domain of unit length Ω = (0, 1). We set the viscosity to ν = 0.01. In our experiment, the
+initial condition u0 has a shape of 128 × 1, and we take 127 more time steps after the initial state to
+form a 2D u0:T of size 128 × 128.
+∂t u(c, τ ) + ∂c (u2 (c, τ )/2) = ν∂cc u(c, τ ),
+u(c, 0) = u0 (c),
+
+c ∈ Ω, τ ∈ (0, T ]
+c∈Ω
+
+(14)
+
+We can reliably compute f = ∂t u(c, τ ) + ∂c (u2 (c, τ )/2) − ν∂cc u(c, τ ) with finite difference since
+we model densely on the time dimension.
+6
+
+Table 1: Relative errors of solutions (or final states) and coefficients (or initial states) when solving
+forward and inverse problems respectively with sparse observations. Error rates are used for the
+inverse problem of Darcy Flow.
+DiffusionPDE
+PINO
+DeepONet PINNs
+FNO
+
+4.2
+
+Darcy Flow
+
+Forward
+Inverse
+
+2.5%
+3.2%
+
+35.2%
+49.2%
+
+38.3%
+41.1%
+
+48.8%
+59.7%
+
+28.2%
+49.3%
+
+Poisson
+
+Forward
+Inverse
+
+4.5%
+20.0%
+
+107.1%
+231.9%
+
+155.5%
+105.8%
+
+128.1%
+130.0%
+
+100.9%
+232.7%
+
+Helmholtz
+
+Forward
+Inverse
+
+8.8%
+22.6%
+
+106.5%
+216.9%
+
+123.1%
+132.8%
+
+142.3%
+160.0%
+
+98.2%
+218.2%
+
+Non-bounded
+Navier-Stokes
+
+Forward
+Inverse
+
+6.9%
+10.4%
+
+101.4%
+96.0%
+
+103.2%
+97.2%
+
+142.7%
+146.8%
+
+101.4%
+96.0%
+
+Bounded
+Navier-Stokes
+
+Forward
+Inverse
+
+3.9%
+2.7%
+
+81.1%
+69.5%
+
+97.7%
+91.9%
+
+100.1%
+105.5%
+
+82.8%
+69.6%
+
+Dataset Preparation and Training
+
+We first test DiffusionPDE on jointly learning the forward mapping F : A → U and the inverse
+mapping I : U → A given sparse observations. In our experiments, we define our PDE over the unit
+square Ω = (0, 1)2 , which we represent as a 128 × 128 grid. We utilize Finite Element Methods
+(FEM) to generate our training data. Specifically, we run FNO’s [3] released scripts to generate
+Darcy Flows and the vorticities of the Navier-Stokes equation. Similarly, we generate the dataset of
+Poisson and Helmholtz using second-order finite difference schemes. To add more complex boundary
+conditions, we use Difftaichi [57] to generate the velocities of the bounded Navier-Stokes equation.
+We train the joint diffusion model for each PDE on three A40 GPUs for approximately 4 hours, using
+50,000 data pairs. For Burgers’ equation, we train the diffusion model on a dataset of 50,000 samples
+produced as outlined in FNO [3]. We randomly select 5 out of 128 spatial points on Ω to simulate
+sensors that provide measurements across time.
+4.3
+
+Baseline Methods
+
+We compare DiffusionPDE with state-of-the-art learning-based methods, including PINO [4], DeepONet [5], PINNs [6], and FNO [3]. However, note that none of these methods show operation on
+partial observations. These methods can learn mappings between a and u or u0 and u1:T with full
+observations, allowing them to also solve the mapping between u0 and uT . PINNs map input a
+to output u by optimizing a combined loss function that incorporates both the solution u and the
+PDE residuals. DeepONet employs a branch network to encode input function values sampled at
+discrete points and a trunk network to handle the coordinates of the evaluated outputs. FNO maps
+from the parametric space to the solution space using Fourier transforms. PINO enhances FNO by
+integrating PDE loss during training and refining the model with PDE loss finetuning. We train all
+four baseline methods on both forward and inverse mappings using full observation of a or u for
+both static and dynamic PDEs. We tried training the baseline models on partial observations, but we
+noticed degenerate training outcomes (see supplementary for details). Overall, they are intended for
+full observations and may not be suitable for sparse measurements.
+More closely related to our method, GraphPDE [8] demonstrates the ability to recover the initial
+state using sparse observations on the final state, a task that other baselines struggle with. Therefore,
+we compare against GraphPDE for the inverse problem of bounded Navier-Stokes (NS) equation,
+which is the setup used in their report. GraphPDE uses a trained latent space model and a bounded
+forward GNN model to solve the inverse problem with sparse sensors and thus is incompatible with
+unbounded Navier-Stokes. We create bounded meshes using our bounded grids to train the GNN
+model and train the latent prior with v0:T for GraphPDE.
+While we employ guided sampling to reconstruct the solutions, Classifier-Free Guidance (CFG) [58]
+offers an alternative approach where the diffusion model is conditioned on sparse input data. Shu et al.
+[54] extend this method by developing an optimized CFG approach that conditions on the PDE loss,
+7
+
+y
+
+500 Random Points
+
+x
+
+Final State
+
+Forward
+
+y
+
+Inverse
+
+DiffusionPDE
+
+DeepONet
+
+PINO
+
+FNO
+
+PINNs
+
+Final State
+
+Ground Truth
+
+Relative Error: 6.9% Relative Error: 103.2% Relative Error: 101.4%Relative Error: 101.4% Relative Error: 142.7%
+
+Initial State
+
+Initial State
+
+Non-bounded Navier-Stokes Equation
+
+Observations
+
+Relative Error: 10.4% Relative Error: 97.2% Relative Error: 96.0% Relative Error: 96.0% Relative Error: 146.8%
+
+x
+
+Time
+
+Time
+
+Burgers’ Equation
+
+5 Random 
+Sensors
+
+x
+
+Relative Error: 2.68% Relative Error: 92.0% Relative Error: 85.7% Relative Error: 90.0% Relative Error: 44.4%
+
+Figure 4: We compare DiffusionPDE with state-of-the-art neural PDE solvers [3–6]. In the forward
+Navier-Stokes problem, we give 500 sparse observations of the initial state to solve for the final
+state. In the inverse set-up, we take observations of the final state and solve for the initial. For the
+Burgers’ equation, we use 5 sensors throughout all time steps and want to recover the solution at
+all time steps. Note that we train on neighboring snapshot pairs for the baselines in order to add
+continuous observations of the Burgers’ equation. Results show that existing methods do not support
+PDE solving under sparse observations, and we believe they are not easily extendable to do so. We
+refer readers to the supplementary for a complete set of visual results.
+using the observation as a low-resolution input. Additionally, OFormer [59] is another model designed
+to reconstruct the full solution using transformers, offering a shorter inference runtime. Consequently,
+we compare our approach against these methods for solving the unbounded Navier-Stokes equation.
+4.4
+
+Main Evaluation Results
+
+We respectively address the forward problem and the inverse problem with sparse observations of a
+or u. For the forward problem, we randomly select coefficients (initial states) as sparse observations
+and then compare the predicted solutions (final states) with the ground truth. Specifically, we select
+500 out of 128 × 128 points, approximately 3%, on the coefficients of Darcy Flow, Poisson equation,
+Helmholtz equation, and the initial state of the non-bounded Navier-Stokes equation. For the bounded
+Navier-Stokes equation, we use 1% observed points beside the boundary of the cylinder in 2D.
+Similarly, for the inverse problem, we randomly sample points on solutions (final states) as sparse
+observations, using the same number of observed points as in the forward model for each PDE.
+We show the relative errors of all methods regarding both forward and inverse problems in Table
+1. Since the coefficients of Darcy Flow are binary, we evaluate the error rates of our prediction.
+Non-binary data is evaluated using mean pixel-wise relative error. We report error numbers averaged across 1,000 random scenes and observations for each PDE. DiffusionPDE outperforms other
+methods including PINO [4], DeepONet [5], PINNs [6], and FNO [3] for both directions with sparse
+observations, demonstrating the novelty and uniqueness of our approach. For the inverse problems of
+the Poisson and Helmholtz equations, DiffusionPDE exhibits higher error rates due to the insufficient
+constraints within the coefficient space, produced from random fields. In Fig. 4, we visualize the
+results for solving both the forward and inverse problem of the non-bounded Navier-Stokes. We refer
+to the supplementary for additional visual results. While other methods may produce partially correct
+results, DiffusionPDE outperforms them and can recover results very close to the ground truth.
+For the inverse problem of the bounded Navier-Stokes equation, we further compare DiffusionPDE
+with GraphPDE, as illustrated in Fig. 5. Our findings reveal that DiffusionPDE surpasses GraphPDE
+[8] in accuracy, reducing the relative error from 12.0% to 2.7% with only 1% observed points.
+We further show whether DiffusionPDE can jointly recover both a and u by analyzing the retrieved
+a and u with sparse observations on different sides as well as on both sides. In Fig. 2, we recover the
+coefficients and solutions of Darcy Flow by randomly observing 500 points on only coefficient space,
+only space solution space, and both. Both coefficients and solutions can be recovered with low errors
+8
+
+Observed Final State
+
+Cylinder Boundary
+
+Final State
+
+Inverse
+
+1% Random Points
+
+GraphPDE
+
+DiffusionPDE
+
+Relative Error: 12.0%
+
+Relative Error: 2.7%
+
+Ground Truth
+
+Initail State
+
+Ground Truth
+
+Figure 5: We compare GraphPDE [8] and our method for solving the inverse bounded Navier-Stokes
+equation. Given the boundary conditions and 1% observations of the final vorticity field, we solve the
+initial vorticity field. We set the fliuds to flow in from the top, with boundary conditions at the edges
+and a middle cylinder. While GraphPDE can recover the overall pattern of the initial state, it suffers
+from noise when the fluid passes the cylinder and misses the high vorticities at the bottom.
+
+for each situation. We therefore conclude that DiffusionPDE can solve the forward problem and the
+inverse problem simultaneously with sparse observations at any side without retraining our network.
+4.5
+
+Advantage of Guided Sampling
+
+To demonstrate the clear advantage of our guided sampling method, we evaluate both the forward and
+inverse processes of the unbounded Navier-Stokes equation, comparing our DiffusionPDE approach
+with Diffusion using CFG when considering only the initial and final states given 500 observation
+points, as illustrated in Fig. 6. Our DiffusionPDE method consistently achieves lower relative errors
+across both evaluations.
+Furthermore, in Fig. 7, we compare our results with those of Shu et al. [54], where the full time
+intervals are solved autoregressively using an optimized CFG method. In their approach, the error
+in the final state increases to approximately 13%, which is notably higher than that of our two-state
+model. Additionally, the relative errors of the transformer-based approach, OFormer [59], are around
+17% and 23%, which are significantly larger than those observed with DiffusionPDE.
+4.6
+
+Recovering Solutions Throughout a Time Interval
+
+We demonstrate that DiffusionPDE is capable of retrieving all time steps throughout the time
+interval [0, T ] from continuous observations on sparse sensors. To evaluate its ability to recover
+u0:T with sparse sensors, we study the 1D dynamic Burgers’ equation, where DiffusionPDE learns
+the distribution of u0:T using a 2D diffusion model. To apply continuous observation on PINO,
+DeepONet, FNO, and PINNs, we train them on neighboring snapshot pairs. Our experiment results
+in a test relative error of 2.68%, depicted in Fig. 4, which is significantly lower than other methods.
+4.7
+
+Additional Analysis
+
+We examine the effects of different components of our algorithm such as PDE loss and observation
+samplings. We strongly encourage readers to view the supplementary for more details of these
+analyses as well as additional experiments.
+PDE Loss. To verify the role of the PDE guidance loss of Eq. 8 during the denoising process, we
+visualize the errors of recovered a and u of Helmholtz equation with or without PDE loss. Here, we
+run our DPS algorithm with 500 sparse observed points on both the coefficient a and solution u and
+study the effect of the additional PDE loss guidance. The relative error of u reduces from 9.3% to
+0.6%, and the relative error of a reduces from 13.2% to 9.4%. Therefore, we conclude that PDE
+guidance helps smooth the prediction and improve the accuracy.
+Number of Observations. We examine the results of DiffusionPDE in solving forward and inverse
+problems when there are 100, 300, 500, and 1000 random observations on a, u, or both a and u. The
+error of DiffusionPDE decreases as the number of sparse observations increases. DiffusionPDE is
+capable of recovering both a and u with errors 1% ∼ 10% with approximately 6% observation points
+at any side for most PDE families. DiffusionPDE becomes insensitive to the number of observations
+and can solve the problems well once more than 3% of the points are observed.
+9
+
+Relative Error: 6.9% Relative Error: 9.6%
+
+500 Random Points
+
+Inverse
+y
+
+DiffusionPDE
+
+Diffusion with CFG
+
+Inverse Absolute Error
+
+Final State
+
+x
+
+Diffusion with CFG
+
+Final State
+
+Forward
+y
+
+DiffusionPDE
+
+Forward Absolute Error
+
+Ground Truth
+
+Initial State
+
+Initial State
+
+Observations
+
+x
+
+Relative Error: 10.4% Relative Error: 17.4%
+
+Figure 6: We compare the performance of DiffusionPDE and Diffusion with CFG for the unbounded
+Navier-Stokes equation, and visualize the error. With 500 observation points, DiffusionPDE demonstrates superior accuracy, achieving lower errors in both forward and inverse problem-solving.
+
+y
+
+500 Random Points
+
+x
+Final State
+
+Forward
+
+y
+
+Inverse
+
+DiffusionPDE
+
+Shu et al.
+
+OFormer
+
+Final State
+
+Ground Truth
+
+Relative Error: 6.9% Relative Error: 12.8% Relative Error: 16.2%
+
+Initial State
+
+Initial State
+
+Observations
+
+x
+
+Relative Error: 10.4% Relative Error: 18.6% Relative Error: 23.5%
+
+Figure 7: We compare our DiffusionPDE method with the approaches of Shu et al. [54] and OFormer
+[59] for the unbounded Navier-Stokes equation. Using 500 observation points, DiffusionPDE
+effectively solves both the forward and inverse problems, achieving significantly lower errors.
+Observation Sampling Pattern. While CFG struggles with robustness, we show that DiffusionPDE
+is robust to different sampling patterns of the sparse observations, including grid and non-uniformly
+concentrated patterns. Note that even when conditioned on the full observations, our approach
+performs on par with the current best methods, likely due to the inherent resilience of our guided
+diffusion algorithm. Additionally, DiffusionPDE can leverage continuous coordinates with bilinear
+interpolation in the prediction space to obtain predicted values for points that do not lie directly on
+the grid, without compromising accuracy.
+
+5
+
+Conclusion and Future Work
+
+In this work, we develop DiffusionPDE, a diffusion-based PDE solver that addresses the challenge
+of solving PDEs from partial observations by filling in missing information using generative priors.
+We formulate a diffusion model that learns the joint distribution of the coefficient (or initial state)
+space and the solution (or final state) space. During the sampling process, DiffusionPDE can flexibly
+generate plausible data by guiding its denoising with sparse measurements and PDE constraints. Our
+new approach leads to significant improvements over existing state-of-the-art methods, advancing
+toward a general PDE-solving framework that leverages the power of generative models.
+Several promising directions for future research have emerged from this work. Currently, DiffusionPDE is limited to solving slices of 2D dynamic PDEs; extending its capabilities to cover full time
+intervals of these equations presents a significant opportunity. Moreover, the model’s struggle with
+accuracy in spaces that lack constraints is another critical area for exploration. DiffusionPDE also
+suffers from a slow sampling procedure, and a faster solution might be desired.
+
+10
+
+References
+[1] Ferri MH Aliabadi. Boundary element methods. In Encyclopedia of continuum mechanics,
+pages 182–193. Springer, 2020.
+[2] Pavel Ŝolín. Partial differential equations and the finite element method. John Wiley & Sons,
+2005.
+[3] Zongyi Li, Nikola Kovachki, Kamyar Azizzadenesheli, Burigede Liu, Kaushik Bhattacharya,
+Andrew Stuart, and Anima Anandkumar. Fourier neural operator for parametric partial differential equations. arXiv preprint arXiv:2010.08895, 2020.
+[4] Zongyi Li, Hongkai Zheng, Nikola Kovachki, David Jin, Haoxuan Chen, Burigede Liu, Kamyar
+Azizzadenesheli, and Anima Anandkumar. Physics-informed neural operator for learning partial
+differential equations. ACM/JMS Journal of Data Science, 2021.
+[5] Lu Lu, Pengzhan Jin, Guofei Pang, Zhongqiang Zhang, and George Em Karniadakis. Learning
+nonlinear operators via deeponet based on the universal approximation theorem of operators.
+Nature machine intelligence, 3(3):218–229, 2021.
+[6] Maziar Raissi, Paris Perdikaris, and George E Karniadakis. Physics-informed neural networks:
+A deep learning framework for solving forward and inverse problems involving nonlinear partial
+differential equations. Journal of Computational physics, 378:686–707, 2019.
+[7] Jonathan Ho, Ajay Jain, and Pieter Abbeel. Denoising diffusion probabilistic models. Advances
+in neural information processing systems, 33:6840–6851, 2020.
+[8] Qingqing Zhao, David B Lindell, and Gordon Wetzstein. Learning to solve pde-constrained
+inverse problems with graph networks. arXiv preprint arXiv:2206.00711, 2022.
+[9] Lawrence C Evans. Partial differential equations, volume 19. American Mathematical Society,
+2022.
+[10] Kenji Omori and Jun Kotera. Overview of pdes and their regulation. Circulation research,
+100(3):309–327, 2007.
+[11] Ryan Po, Wang Yifan, Vladislav Golyanik, Kfir Aberman, Jonathan T Barron, Amit H Bermano,
+Eric Ryan Chan, Tali Dekel, Aleksander Holynski, Angjoo Kanazawa, et al. State of the art on
+diffusion models for visual computing. arXiv preprint arXiv:2310.07204, 2023.
+[12] Walter A Strauss. Partial differential equations: An introduction. John Wiley & Sons, 2007.
+[13] Ling Yang, Zhilong Zhang, Yang Song, Shenda Hong, Runsheng Xu, Yue Zhao, Wentao Zhang,
+Bin Cui, and Ming-Hsuan Yang. Diffusion models: A comprehensive survey of methods and
+applications. ACM Computing Surveys, 56(4):1–39, 2023.
+[14] Alfio Quarteroni and Alberto Valli. Numerical approximation of partial differential equations,
+volume 23. Springer Science & Business Media, 2008.
+[15] Sergio R Idelsohn, Eugenio Onate, Nestor Calvo, and Facundo Del Pin. The meshless finite
+element method. International Journal for Numerical Methods in Engineering, 58(6):893–912,
+2003.
+[16] Maziar Raissi, Paris Perdikaris, and George Em Karniadakis. Physics informed deep learning (part i): Data-driven solutions of nonlinear partial differential equations. arXiv preprint
+arXiv:1711.10561, 2017.
+[17] Shengze Cai, Zhiping Mao, Zhicheng Wang, Minglang Yin, and George Em Karniadakis.
+Physics-informed neural networks (pinns) for fluid mechanics: A review. Acta Mechanica
+Sinica, 37(12):1727–1738, 2021.
+[18] Zhiping Mao, Ameya D Jagtap, and George Em Karniadakis. Physics-informed neural networks
+for high-speed flows. Computer Methods in Applied Mechanics and Engineering, 360:112789,
+2020.
+11
+
+[19] Hamidreza Eivazi, Mojtaba Tahani, Philipp Schlatter, and Ricardo Vinuesa. Physics-informed
+neural networks for solving reynolds-averaged navier–stokes equations. Physics of Fluids,
+34(7), 2022.
+[20] Shengze Cai, Zhicheng Wang, Sifan Wang, Paris Perdikaris, and George Em Karniadakis.
+Physics-informed neural networks for heat transfer problems. Journal of Heat Transfer,
+143(6):060801, 2021.
+[21] George S Misyris, Andreas Venzke, and Spyros Chatzivasileiadis. Physics-informed neural
+networks for power systems. In 2020 IEEE power & energy society general meeting (PESGM),
+pages 1–5. IEEE, 2020.
+[22] Zongyi Li, Nikola Kovachki, Chris Choy, Boyi Li, Jean Kossaifi, Shourya Otta, Mohammad Amin Nabian, Maximilian Stadler, Christian Hundt, Kamyar Azizzadenesheli, et al.
+Geometry-informed neural operator for large-scale 3d pdes. Advances in Neural Information
+Processing Systems, 36, 2024.
+[23] Louis Serrano, Lise Le Boudec, Armand Kassaï Koupaï, Thomas X Wang, Yuan Yin, Jean-Noël
+Vittaut, and Patrick Gallinari. Operator learning with neural fields: Tackling pdes on general
+geometries. Advances in Neural Information Processing Systems, 36, 2024.
+[24] Gege Wen, Zongyi Li, Kamyar Azizzadenesheli, Anima Anandkumar, and Sally M Benson.
+U-fno—an enhanced fourier neural operator-based deep-learning model for multiphase flow.
+Advances in Water Resources, 163:104180, 2022.
+[25] Fanny Lehmann, Filippo Gatti, Michaël Bertin, and Didier Clouteau. Fourier neural operator
+surrogate model to predict 3d seismic waves propagation. arXiv preprint arXiv:2304.10242,
+2023.
+[26] Bian Li, Hanchen Wang, Shihang Feng, Xiu Yang, and Youzuo Lin. Solving seismic wave
+equations on variable velocity models with fourier neural operator. IEEE Transactions on
+Geoscience and Remote Sensing, 61:1–18, 2023.
+[27] Zhijie Li, Wenhui Peng, Zelong Yuan, and Jianchun Wang. Fourier neural operator approach
+to large eddy simulation of three-dimensional turbulence. Theoretical and Applied Mechanics
+Letters, 12(6):100389, 2022.
+[28] Wenhui Peng, Zelong Yuan, Zhijie Li, and Jianchun Wang. Linear attention coupled fourier
+neural operator for simulation of three-dimensional turbulence. Physics of Fluids, 35(1), 2023.
+[29] Boris Bonev, Thorsten Kurth, Christian Hundt, Jaideep Pathak, Maximilian Baust, Karthik
+Kashinath, and Anima Anandkumar. Spherical fourier neural operators: Learning stable
+dynamics on the sphere. In International conference on machine learning, pages 2806–2823.
+PMLR, 2023.
+[30] Peter Yichen Chen, Jinxu Xiang, Dong Heon Cho, Yue Chang, GA Pershing, Henrique Teles
+Maia, Maurizio M Chiaramonte, Kevin Carlberg, and Eitan Grinspun. Crom: Continuous reduced-order modeling of pdes using implicit neural representations. arXiv preprint
+arXiv:2206.02607, 2022.
+[31] Zilu Li, Guandao Yang, Xi Deng, Christopher De Sa, Bharath Hariharan, and Steve Marschner.
+Neural caches for monte carlo partial differential equation solvers. In SIGGRAPH Asia 2023
+Conference Papers, pages 1–10, 2023.
+[32] Thomas Müller, Fabrice Rousselle, Jan Novák, and Alexander Keller. Real-time neural radiance
+caching for path tracing. arXiv preprint arXiv:2106.12372, 2021.
+[33] Hong Chul Nam, Julius Berner, and Anima Anandkumar. Solving poisson equations using
+neural walk-on-spheres. In ICLR 2024 Workshop on AI4DifferentialEquations In Science, 2024.
+[34] M Cho, B Jadamba, R Kahler, AA Khan, and M Sama. First-order and second-order adjoint
+methods for the inverse problem of identifying non-linear parameters in pdes. Industrial
+Mathematics and Complex Systems: Emerging Mathematical Models, Methods and Algorithms,
+pages 147–163, 2017.
+12
+
+[35] Colin Fox and Geoff Nicholls. Statistical estimation of the parameters of a pde. Can. appl.
+Math. Quater, 10:277–810, 2001.
+[36] Bastian Harrach. An introduction to finite element methods for inverse coefficient problems in
+elliptic pdes. Jahresbericht der Deutschen Mathematiker-Vereinigung, 123(3):183–210, 2021.
+[37] Krishna Kumar and Yonjin Choi. Accelerating particle and fluid simulations with differentiable
+graph networks for solving forward and inverse problems. In Proceedings of the SC’23
+Workshops of The International Conference on High Performance Computing, Network, Storage,
+and Analysis, pages 60–65, 2023.
+[38] Tristan van Leeuwen and Felix J Herrmann. A penalty method for pde-constrained optimization
+in inverse problems. Inverse Problems, 32(1):015007, 2015.
+[39] Da Long and Shandian Zhe. Invertible fourier neural operators for tackling both forward and
+inverse problems. arXiv preprint arXiv:2402.11722, 2024.
+[40] Roberto Molinaro, Yunan Yang, Björn Engquist, and Siddhartha Mishra. Neural inverse
+operators for solving pde inverse problems. arXiv preprint arXiv:2301.11167, 2023.
+[41] Maarten V de Hoop, Matti Lassas, and Christopher A Wong. Deep learning architectures
+for nonlinear operator functions and nonlinear inverse problems. Mathematical Statistics and
+Learning, 4(1):1–86, 2022.
+[42] Samira Pakravan, Pouria A Mistani, Miguel A Aragon-Calvo, and Frederic Gibou. Solving
+inverse-pde problems with physics-aware neural networks. Journal of Computational Physics,
+440:110414, 2021.
+[43] Valerii Iakovlev, Markus Heinonen, and Harri Lähdesmäki. Learning continuous-time pdes
+from sparse data with graph neural networks. arXiv preprint arXiv:2006.08956, 2020.
+[44] Jiaming Song, Chenlin Meng, and Stefano Ermon. Denoising diffusion implicit models. arXiv
+preprint arXiv:2010.02502, 2020.
+[45] Tero Karras, Miika Aittala, Timo Aila, and Samuli Laine. Elucidating the design space of
+diffusion-based generative models. In Proc. NeurIPS, 2022.
+[46] Hyungjin Chung, Jeongsol Kim, Michael T Mccann, Marc L Klasky, and Jong Chul Ye. Diffusion posterior sampling for general noisy inverse problems. arXiv preprint arXiv:2209.14687,
+2022.
+[47] Hyungjin Chung, Byeongsu Sim, Dohoon Ryu, and Jong Chul Ye. Improving diffusion models
+for inverse problems using manifold constraints. Advances in Neural Information Processing
+Systems, 35:25683–25696, 2022.
+[48] Prafulla Dhariwal and Alexander Nichol. Diffusion models beat gans on image synthesis.
+Advances in neural information processing systems, 34:8780–8794, 2021.
+[49] Sihan Xu, Yidong Huang, Jiayi Pan, Ziqiao Ma, and Joyce Chai. Inversion-free image editing
+with natural language. arXiv preprint arXiv:2312.04965, 2023.
+[50] Christian Jacobsen, Yilin Zhuang, and Karthik Duraisamy. Cocogen: Physically-consistent and
+conditioned score-based generative models for forward and inverse problems. arXiv preprint
+arXiv:2312.10527, 2023.
+[51] Marten Lienen, David Lüdke, Jan Hansen-Palmus, and Stephan Günnemann. From zero
+to turbulence: Generative modeling for 3d flow simulation. In The Twelfth International
+Conference on Learning Representations, 2023.
+[52] Gefan Yang and Stefan Sommer. A denoising diffusion model for fluid field prediction. arXiv
+preprint arXiv:2301.11661, 2023.
+[53] Phillip Lippe, Bas Veeling, Paris Perdikaris, Richard Turner, and Johannes Brandstetter. Pderefiner: Achieving accurate long rollouts with neural pde solvers. Advances in Neural Information Processing Systems, 36, 2024.
+13
+
+[54] Dule Shu, Zijie Li, and Amir Barati Farimani. A physics-informed diffusion model for highfidelity flow field reconstruction. Journal of Computational Physics, 478:111972, 2023.
+[55] Yang Song, Jascha Sohl-Dickstein, Diederik P Kingma, Abhishek Kumar, Stefano Ermon, and
+Ben Poole. Score-based generative modeling through stochastic differential equations. In
+International Conference on Learning Representations, 2021.
+[56] Aapo Hyvärinen and Peter Dayan. Estimation of non-normalized statistical models by score
+matching. Journal of Machine Learning Research, 6(4), 2005.
+[57] Yuanming Hu, Luke Anderson, Tzu-Mao Li, Qi Sun, Nathan Carr, Jonathan Ragan-Kelley, and
+Frédo Durand. Difftaichi: Differentiable programming for physical simulation. arXiv preprint
+arXiv:1910.00935, 2019.
+[58] Jonathan Ho and Tim Salimans.
+arXiv:2207.12598, 2022.
+
+Classifier-free diffusion guidance.
+
+arXiv preprint
+
+[59] Zijie Li, Kazem Meidani, and Amir Barati Farimani. Transformer for partial differential
+equations’ operator learning. arXiv preprint arXiv:2205.13671, 2022.
+[60] Evan F Bollig, Natasha Flyer, and Gordon Erlebacher. Solution to pdes using radial basis function finite-differences (rbf-fd) on multiple gpus. Journal of Computational Physics,
+231(21):7133–7151, 2012.
+
+14
+
+Appendix
+A
+
+Overview
+
+In this supplementary material, we provide additional details to complement the main paper. Section
+B elaborates on the data generation process. Section C outlines the sampling implementation,
+and Section D highlights error reductions achieved by integrating PDE loss. Section E presents
+comprehensive visual results for both forward and inverse computations using sparse observations,
+which are not included in the main text. In Section F, we discuss results from full observation
+scenarios across all methods. Section G justifies our decision to train the baselines on complete
+observation data, while Section H shows results from optimized baseline methods. Section I and J
+provide standard deviation and runtime analyses, and Section K examines the model’s robustness
+against random noise and varying observation locations, as well as the stochasticity of the model.
+Section L and M explores how different observation numbers and resolutions affect result accuracy,
+offering further insight into the model’s performance under varying conditions. Lastly, Section N
+compares DiffusionPDE with additional baseline methods, including RBF kernel and U-Net.
+
+B
+
+Data Generation Details
+
+We generate 50,000 samples for each PDE and all diffusion models are trained on Nvidia A40 GPUs.
+B.1
+
+Static PDEs
+
+We derived the methods of data generation for static PDEs from [3]. We first generate Gaussian
+random fields on (0, 1)2 so that µ ∼ N (0, (−∆ + 9I)−2 ). For Darcy Flow, we let a = f (µ) so that:
+
+a(x) = 12,
+if µ(x) ≥ 0
+a(x) = 3,
+if µ(x) < 0
+For the Poisson equation and Helmholtz equation, we let a = µ as the coefficients. We then use
+second-order finite difference schemes to solve the solution u and enforce the no-slip boundary
+condition for solutions by multiplying a mollifier sin(πx1 ) sin(πx2 ) for point x = (x1 , x2 ) ∈ (0, 1)2 .
+Both a and u have resolutions of 128 × 128.
+B.2
+
+Non-bounded Navier-Stokes Equation
+
+We derived the method to generate non-bounded Navier-Stokes equation from [3]. The initial
+condition w0 is generated by Gaussian random field N (0, 71.5 (−∆+49I)−2.5 ). The forcing function
+follows the fixed pattern for point (x1 , x2 ):
+1
+q(x) =
+(sin(2π(x1 + x2 )) + cos(2π(x1 + x2 )))
+10
+We then use the pseudo-spectral method to solve the Navier-Stokes equations in the stream-function
+formulation. We transform the equations into the spectral domain using Fourier transforms, solving
+the vorticity equation in the spectral domain, and then using inverse Fourier transforms to compute
+nonlinear terms in physical space. We simulate for 1 second with 10 timesteps, and wt has a resolution
+of 128 × 128.
+B.3
+
+Bounded Navier-Stokes Equation
+
+We use Difftaichi [57] to generate data for the bounded Navier-Stokes equation. Specifically,
+we apply the Marker-and-Cell (MAC) method by solving a pressure-Poisson equation to enforce
+incompressibility and iterating through predictor and corrector steps to update the velocity and
+pressure fields. The grid is of the resolution 128 × 128 and the center of the cylinder is at a random
+location in [30, 60] × [30, 90] with a random radius in [5, 20]. The fluid flows into the grid from the
+upper boundary with a random initial vertical velocity in [0.5, 3]. We simulate for 1 second with 10
+timesteps and study steps 4 to 8 when the turbulence is passing the cylinder.
+B.4
+
+Burgers’ Equation
+
+We derived the method to generate Burgers’ equation from [3]. The initial condition u0 is generated
+by Gaussian random field N (0, 625(−∆ + 25I)−2 ). We solve the PDE with a spectral method and
+simulate 1 second with 127 additional timesteps. The final u0:T space has a resolution of 128 × 128.
+15
+
+C
+
+Guided Sampling Details
+
+For experiments with sparse observations or sensors, we find that DiffusionPDE performs the best
+when weights ζ are selected as shown in Table 2. During the initial 80% of iterations in the sampling
+process, guidance is exclusively provided by the observation loss Lobs . Subsequently, after 80% of
+the iterations have been completed, we introduce the PDE loss Lpde , and reduce the weighting factor
+ζobs for the observation loss, by a factor of 10. This adjustment shifts the primary guiding influence
+to the PDE loss, thereby aligning the diffusion model more closely with the dynamics governed by
+the partial differential equations.
+Table 2: The weights assigned to the PDE loss and the observation loss vary depending on whether
+the observations pertain to the coefficients (or initial states) a or to the solutions (or final states) u.
+Darcy Flow Poisson Helmholtz Non-bounded Bounded
+Burgers’
+Navier-Stokes Navier-Stokes equation
+a
+u
+
+ζobs
+ζpde
+
+D
+
+2.5 × 103
+106
+
+4 × 102
+2 × 104
+
+2 × 102
+3 × 104
+
+5 × 102
+5 × 102
+
+2.5 × 102
+2.5 × 102
+
+3.2 × 102
+-
+
+103
+
+102
+
+102
+
+102
+
+102
+
+102
+
+Improvement in Prediction through PDE Loss Term
+
+DiffusionPDE performs better when we apply the PDE loss term Lpde in addition to the observation
+loss term Lobs as guidance, as shown in Table 3. The errors in both the coefficients ( initial states) a
+and the solutions (final states) u significantly decrease. We also visualize the recovered a and u and
+corresponding absolute errors of Darcy Flow, Poisson equation, and Helmholtz equation in Fig. 8. It
+is demonstrated that the prediction becomes more accurate with the combined guidance of PDE loss
+and observation loss than with only observation loss.
+Table 3: DiffusionPDE’ prediction errors of coefficients (initial states) a and solutions (final states) u
+with sparse observation on both a and u, guided by different loss functions.
+Loss Function Side Darcy Flow Poisson Helmholtz Non-bounded Bounded
+Navier-Stokes Navier-Stokes
+Lobs
+
+a
+u
+
+4.6%
+4.8%
+
+12.1%
+6.5%
+
+13.2%
+9.3%
+
+8.2%
+7.6%
+
+6.4%
+3.3%
+
+Lobs + Lpde
+
+a
+u
+
+3.4%
+1.7%
+
+10.3%
+0.3%
+
+9.4%
+0.6%
+
+4.9%
+0.6%
+
+1.7%
+1.4%
+
+Guided with PDE Loss 
+and Observation Loss
+
+Error Rate: 3.3%
+
+Error Rate: 2.6%
+
+Relative Error: 5.1%
+
+Relative Error: 0.9%
+
+Guided with 
+Observation Loss
+
+Ground Truth
+
+Guided with PDE Loss 
+and Observation Loss
+
+Recovered Solutions
+
+Solution Absolute Error
+
+Recovered Coefficients
+
+Coefficient Absolute Error
+
+Guided with 
+Observation Loss
+
+(a) Recovered coefficients, solutions, and corresponding absolute errors of Darcy Flow.
+
+16
+
+Guided with PDE Loss 
+and Observation Loss
+
+Relative Error: 12.1%
+
+Relative Error: 10.3%
+
+Relative Error: 6.5%
+
+Relative Error: 0.3%
+
+Guided with 
+Observation Loss
+
+Ground Truth
+
+Guided with PDE Loss 
+and Observation Loss
+
+Recovered Solutions
+
+Solution Absolute Error
+
+Recovered Coefficients
+
+Coefficient Absolute Error
+
+Guided with 
+Observation Loss
+
+(b) Recovered coefficients, solutions, and corresponding absolute errors of Poisson equation.
+Guided with PDE Loss 
+and Observation Loss
+
+Relative Error: 13.2%
+
+Relative Error: 9.4%
+
+Relative Error: 9.3%
+
+Relative Error: 0.6%
+
+Guided with 
+Observation Loss
+
+Ground Truth
+
+Guided with PDE Loss 
+and Observation Loss
+
+Recovered Solutions
+
+Solution Absolute Error
+
+Recovered Coefficients
+
+Coefficient Absolute Error
+
+Guided with 
+Observation Loss
+
+(c) Recovered coefficients, solutions, and corresponding absolute errors of Helmholtz equation.
+
+Figure 8: Recovered coefficients, solutions, and their corresponding visualized absolute errors for
+various PDE families.
+
+E
+
+Additional Results on All PDEs with Sparse Observation
+
+We present the recovered results of another Burgers’ equation in Fig. 9. DiffusionPDE outperforms
+all other methods with 5 sensors for continuous observation. We also present the recovered results for
+both the forward and inverse problems of all other PDEs with sparse observations, as shown in Fig.
+10. Specifically, we solve the forward and inverse problems for the Darcy Flow, Poisson equation,
+Helmholtz equation, and non-bounded Navier-Stokes equation using 500 random points observed
+in either the solution space or the coefficient space. Additionally, for the bounded Navier-Stokes
+equation, we observe 1% of the points in the velocity field. Our findings indicate that DiffusionPDE
+outperforms all other methods, providing the most accurate solutions.
+Additional Data Setting for Darcy Flow To further demonstrate the generalization capability of
+our model, we conducted additional tests on different data settings for Darcy Flow. In Fig. 11, we
+solve the forward and inverse problems of Darcy Flow with 500 observation points, adjusting the
+binary values of a to 20 and 16 instead of the original 12 and 3 in Section B, i.e.,
+
+a(x) = 20,
+if µ(x) ≥ 0
+a(x) = 16,
+if µ(x) < 0
+Our results indicate that DiffusionPDE performs equally well under these varied data settings,
+showcasing its robustness and adaptability.
+17
+
+Observations
+
+Ground Truth
+
+DiffusionPDE
+
+DeepONet
+
+PINO
+
+FNO
+
+PINNs
+
+Time
+
+5 Random Sensors
+
+x
+
+Relative Error: 5.1% Relative Error: 78.2% Relative Error: 96.2% Relative Error: 96.3% Relative Error: 75.4%
+
+Figure 9: Results of another Burgers’ equation recovered by 5 sensors throughout the time interval.
+Ground Truth
+
+y
+
+y
+
+Inverse
+
+x
+
+PINNs
+
+Error Rate: 41.1%
+
+Error Rate: 49.2%
+
+Error Rate: 49.3%
+
+Error Rate: 59.7%
+
+Ground Truth
+
+500 Random Points
+
+y
+
+Inverse
+
+DeepONet
+
+PINO
+
+FNO
+
+PINNs
+
+Relative Error: 4.5% Relative Error: 155.5% Relative Error: 107.1% Relative Error: 100.9% Relative Error: 128.1%
+
+Coefficients
+
+x
+
+Forward
+
+DiffusionPDE
+
+Solutions
+
+Coefficients
+
+FNO
+
+(a) Forward and inverse results of Darcy Flow recovered by 500 observation points.
+
+y
+
+Solutions
+
+PINO
+
+Relative Error: 2.5% Relative Error: 38.3% Relative Error: 35.2% Relative Error: 28.2% Relative Error: 48.8%
+
+Error Rate: 3.2%
+
+Observations
+
+DeepONet
+
+Coefficients
+
+500 Random Points
+
+Solutions
+
+x
+
+Forward
+
+DiffusionPDE
+
+Solutions
+
+Coefficients
+
+Observations
+
+Relative Error: 20.0% Relative Error: 105.8%Relative Error: 231.9% Relative Error: 232.7% Relative Error: 130.0%
+
+x
+
+(b) Forward and inverse results of Poisson equation recovered by 500 observation points.
+Ground Truth
+
+y
+
+y
+
+Inverse
+
+DeepONet
+
+PINO
+
+FNO
+
+PINNs
+
+Relative Error: 8.8% Relative Error: 123.1% Relative Error: 106.5% Relative Error: 98.2% Relative Error: 142.3%
+
+Coefficients
+
+500 Random Points
+
+Solutions
+
+x
+
+Forward
+
+DiffusionPDE
+
+Solutions
+
+Coefficients
+
+Observations
+
+Relative Error: 22.6% Relative Error: 132.8% Relative Error: 216.9% Relative Error: 218.2% Relative Error: 160.0%
+
+x
+
+(c) Forward and inverse results of Helmholtz equation recovered by 500 observation points.
+
+y
+
+Final State
+
+x
+
+500 Random Points
+
+y
+
+x
+
+Forward
+
+Inverse
+
+DiffusionPDE
+
+DeepONet
+
+PINO
+
+FNO
+
+PINNs
+
+Final State
+
+Ground Truth
+
+Relative Error: 5.7% Relative Error: 100.1% Relative Error: 99.5% Relative Error: 99.1% Relative Error: 141.1%
+
+Initial State
+
+Initial State
+
+Observations
+
+Relative Error: 9.5% Relative Error: 96.9% Relative Error: 98.2% Relative Error: 98.1% Relative Error: 150.7%
+
+(d) Forward and inverse results of another non-bounded Navier-Stokes equation recovered by 500 observation
+points.
+
+18
+
+Ground Truth
+Forward
+
+Final State
+
+x
+
+Inverse
+
+FNO
+
+PINNs
+
+Relative Error: 3.9% Relative Error: 97.7% Relative Error: 81.1% Relative Error: 82.8% Relative Error: 100.1%
+
+1% Random Points
+
+y
+
+PINO
+
+Final State
+
+y
+
+DeepONet
+
+DiffusionPDE
+
+Initial State
+
+Initial State
+
+Observations
+
+Relative Error: 2.7% Relative Error: 91.9% Relative Error: 69.5% Relative Error: 69.6% Relative Error: 105.5%
+
+x
+
+(e) Forward and inverse results of bounded Navier-Stokes equation recovered by 1% observation points.
+Observed Final State
+
+Cylinder Boundary
+
+Final State
+
+Inverse
+
+GraphPDE
+
+DiffusionPDE
+
+Relative Error: 10.5%
+
+Relative Error: 5.6%
+
+Ground Truth
+
+Initail State
+
+Ground Truth
+
+1% Random Points
+
+(f) Inverse results of DiffusionPDE and GraphPDE of another bounded Navier-Stokes equation recovered by 1%
+observation points and the known boundary of the cylinder.
+
+Figure 10: Results of forward and inverse problems for different PDE families with sparse observation.
+
+Observed Coefficients
+
+Recovered Solutions
+
+Ground Truth
+
+Observed Solutions
+
+Forward
+
+Recovered Solutions
+
+Ground Truth
+
+Inverse
+
+Relative Error: 7.7%
+
+Ground Truth
+
+DiffusionPDE
+
+Ground Truth
+
+Relative Error: 6.8%
+
+Navier-Stokes (Inverse)
+
+Burgers' Equation
+
+DiffusionPDE
+
+Navier-Stokes (Forward)
+
+Relative Error: 2.0%
+Error Rate: 4.9%
+500 Random Points
+500 Random Points
+Figure 11: Forward and inverse results of Darcy Flow recovered by 500 observation points under a
+different data setting.
+DiffusionPDE
+
+Ground Truth
+
+Relative Error: 8.1%
+
+Figure 12: Results of Navier-Stokes equation and Burgers’ equation with 10 times smaller viscosity.
+Additional Data Setting for Non-bounded Navier-Stokes Equation and Burgers’ Equation We
+also test DiffusionPDE on the Burgers’ equation with a viscosity of 1 × 10−3 and on the non-bounded
+Navier-Stokes equation with a viscosity of 1 × 10−4 , which are 10 times smaller than the ones in
+the main paper, as shown in Fig. 12. For the Burgers’ equation, we are able to recover the full time
+interval with 5 fixed sensors at a relative error of approximately 6%, which is close to the error of
+approximately 2 ∼ 5% in the main paper. For the Navier-Stokes equation, we can solve the forward
+and inverse problems with relative errors of approximately 7% and 9%, respectively, using 500
+observation points. The errors are also close to the ones in the main paper, where the forward and
+inverse errors of Navier-Stokes equation are approximately 7% and 10%.
+
+F
+
+Solving Forward and Inverse Problems with Full Observation
+
+We have also included the errors of all methods when solving both the forward and inverse problems
+with full observation, as displayed in Table 4.
+19
+
+Table 4: Relative errors of solutions (or final states) and coefficients (or initial states) when solving
+forward and inverse problems with full observations. Error rates are used for the inverse problem of
+Darcy Flow.
+DiffusionPDE PINO DeepONet PINNs FNO
+Darcy Flow
+
+Forward
+Inverse
+
+2.2%
+2.0%
+
+4.0%
+2.1%
+
+12.3%
+8.4%
+
+15.4%
+10.1%
+
+5.3%
+5.6%
+
+Poisson
+
+Forward
+Inverse
+
+2.7%
+9.8%
+
+3.7%
+10.2%
+
+14.3%
+29.0%
+
+16.1%
+28.5%
+
+8.2%
+13.6%
+
+Helmholtz
+
+Forward
+Inverse
+
+2.3%
+4.0%
+
+4.9%
+4.9%
+
+17.8%
+28.1%
+
+18.1%
+29.2%
+
+11.1%
+5.0%
+
+Non-bounded
+Navier-Stokes
+
+Forward
+Inverse
+
+6.1%
+8.6%
+
+1.1%
+6.8%
+
+25.6%
+19.6%
+
+27.3%
+27.8%
+
+2.3%
+6.8%
+
+Bounded
+Navier-Stokes
+
+Forward
+Inverse
+
+1.7%
+1.4%
+
+1.9%
+2.9%
+
+13.3%
+6.1%
+
+18.6%
+7.6%
+
+2.0%
+3.0%
+
+In general, DiffusionPDE and PINO outperform all other methods, and DiffusionPDE performs the
+best for all static PDEs. DiffusionPDE is capable of solving both forward and inverse problems with
+errors of less than 10% for all classes of discussed PDEs and is comparable to the state-of-the-art.
+Results of all methods regarding Darcy Flow and non-bounded Navier-Stokes equation are included
+in Fig. 13.
+
+y
+
+Solutions
+
+x
+
+Forward
+
+Full Observation
+
+y
+
+Inverse
+
+DeepONet
+
+DiffusionPDE
+
+PINO
+
+FNO
+
+PINNs
+
+Solutions
+
+Ground Truth
+
+Relative Error: 2.1% Relative Error: 12.4% Relative Error: 3.9% Relative Error: 5.1% Relative Error: 12.9%
+
+Coefficients
+
+Coefficients
+
+Observations
+
+x
+
+Error Rate: 0.7%
+
+Error Rate: 8.5%
+
+Error Rate: 2.1%
+
+Error Rate: 5.5%
+
+Error Rate: 10.2%
+
+(a) Forward and inverse results of Darcy Flow recovered by full observation.
+
+y
+
+Full Observation
+
+Final State
+
+x
+
+y
+
+x
+
+Forward
+
+Inverse
+
+DiffusionPDE
+
+DeepONet
+
+PINO
+
+FNO
+
+PINNs
+
+Final State
+
+Ground Truth
+
+Relative Error: 3.2% Relative Error: 23.4% Relative Error: 1.1% Relative Error: 1.2% Relative Error: 26.3%
+
+Initial State
+
+Initial State
+
+Observations
+
+Relative Error: 3.4% Relative Error: 24.1% Relative Error: 3.6% Relative Error: 3.7% Relative Error: 29.0%
+
+(b) Forward and inverse results of non-bounded Navier-Stokes equation recovered by full observation.
+
+Figure 13: Results of forward and inverse problems for different PDE families with full observation.
+
+G
+
+Training Baselines Methods on Partial Inputs
+
+For our main experiments, we opt to train the baseline models (PINO, DeepONet, PINNs, FNO) on
+full observations for several compelling reasons: First, physics-informed models such as PINNs and
+PINO are unable to effectively compute the PDE loss when only sparse observations are available.
+Second, other models like DeepONet and FNO perform poorly with sparse observations. For instance,
+20
+
+Table 5: Relative errors of solutions (or final states) and coefficients (or initial states) when solving
+forward and inverse problems respectively with sparse observations after optimizing the baselines.
+Error rates are used for the inverse problem of Darcy Flow.
+DiffusionPDE DeepONet
+PINO
+FNO
+PINNs
+Darcy Flow
+
+Forward
+Inverse
+
+2.5%
+3.2%
+
+31.3%
+41.1%
+
+32.6%
+49.2%
+
+27.8%
+49.3%
+
+6.9%
+59.7%
+
+Poisson
+
+Forward
+Inverse
+
+4.5%
+20.0%
+
+73.6%
+75.0%
+
+79.1%
+115.0%
+
+70.5%
+118.5%
+
+77.8%
+73.9%
+
+Helmholtz
+
+Forward
+Inverse
+
+8.8%
+22.6%
+
+77.6%
+100.7%
+
+67.7%
+125.3%
+
+84.8%
+131.6%
+
+79.2%
+103.7%
+
+Non-bounded
+Navier-Stokes
+
+Forward
+Inverse
+
+6.9%
+10.4%
+
+96.5%
+71.9%
+
+93.3%
+87.8%
+
+91.6%
+89.3%
+
+106.1%
+108.6%
+
+Bounded
+Navier-Stokes
+
+Forward
+Inverse
+
+3.9%
+2.7%
+
+89.1%
+88.6%
+
+80.8%
+47.3%
+
+81.2%
+48.7%
+
+84.4%
+82.1%
+
+training the DeepONet model on 500 uniformly random points for each training sample in the context
+of the forward problem of Darcy Flow leads to testing outcomes that are consistently similar, as
+illustrated in Fig. 14, regardless of the testing input. This pattern suggests that the model tends to
+generate a generalized solution that minimizes the average error across all potential solutions rather
+than converging based on specific samples. Furthermore, the partial-input-trained model exhibits
+poor generalization when faced with a different distribution of observations from training, indicating
+that it lacks flexibility—a critical attribute of our DiffusionPDE.
+1000 Observed Points
+
+500 Observed Points
+
+Full Observation
+
+Figure 14: Predicted solutions obtained using the DeepONet model trained with 500 observation
+points across different numbers of observation points.
+
+H
+
+Baseline Optimization
+
+We further refine the noisy outputs generated by baseline methods such as DeepONet, PINO, FNO,
+and PINNs. Specifically, given a partially observed parameter a for the PDE f (c; a, u) = 0 and a
+pre-trained forward operator F ′ , we address the problem by solving the optimization equation:
+min Lpde (a, F ′ (a); f )
+a
+
+(15)
+
+and the results are shown in Table 5 and Fig. 15. Optimization reduces errors and smooths the
+solutions. However, the resulting values are smaller due to the smoothing effect from minimizing
+PDE loss, and the overall error compared to the ground truth remains much higher than DiffusionPDE.
+This may be due to the difficulty in optimizing the derivatives of noisy a and u.
+
+I
+
+Standard Deviation of DiffusionPDE Experiment Results
+
+We further assess the statistical significance of our DiffusionPDE by analyzing the standard deviations for forward and inverse problems under conditions of 500 sparse observation points and full
+observation, respectively, as detailed in Table 6. We evaluate our model using test sets comprising
+1,000 samples for each PDE. Our findings confirm that full observation enhances the stability of
+21
+
+y
+
+Solutions
+
+x
+
+Forward
+
+500 Random Points
+
+y
+
+Inverse
+
+DiffusionPDE
+
+DeepONet
+
+PINO
+
+FNO
+
+PINNs
+
+Solutions
+
+Ground Truth
+
+Relative Error: 4.5% Relative Error: 73.6% Relative Error: 79.1% Relative Error: 70.5% Relative Error: 77.8%
+
+Coefficients
+
+Coefficients
+
+Observations
+
+Relative Error: 20.0% Relative Error: 75.0% Relative Error: 115.0% Relative Error: 118.5% Relative Error: 73.9%
+
+x
+
+Figure 15: Results of Poisson equation after optimizing baseline methods.
+
+the results, a predictable outcome as variability diminishes with an increase in observation points.
+The standard deviations are notably higher for more complex PDEs, such as the inverse problems
+of the Poisson and Helmholtz equations, reflecting the inherent challenges associated with these
+computations. Overall, DiffusionPDE demonstrates considerable stability, evidenced by relatively
+low standard deviations across various tests.
+Table 6: Standard deviation of DiffusionPDE when solving forward and inverse problems with sparse
+or full observations.
+Sparse Observations Full Observations
+
+J
+
+Darcy Flow
+
+Forward
+Inverse
+
+2.5 ± 0.7%
+3.2 ± 0.9%
+
+2.2 ± 0.1%
+2.0 ± 0.1%
+
+Poisson
+
+Forward
+Inverse
+
+4.5 ± 0.9%
+20.0 ± 1.8%
+
+2.7 ± 0.1%
+9.8 ± 0.7%
+
+Helmholtz
+
+Forward
+Inverse
+
+8.8 ± 1.0%
+22.6 ± 1.7%
+
+2.3 ± 0.1%
+4.0 ± 0.6%
+
+Non-bounded
+Navier-Stokes
+
+Forward
+Inverse
+
+6.9 ± 0.9%
+10.4 ± 1.0%
+
+6.1 ± 0.2%
+8.6 ± 0.3%
+
+Bounded
+Navier-Stokes
+
+Forward
+Inverse
+
+3.9 ± 0.2%
+2.7 ± 0.2%
+
+1.7 ± 0.1%
+1.4 ± 0.1%
+
+Runtime Analysis
+
+We evaluate the computing cost during the inference stage by testing a single data point on a single
+A40 GPU for the Navier-Stokes equation, as shown in Table 7. DiffusionPDE has a lower computing
+cost compared to Shu et al. [54], which autoregressively solves the full time interval. This advantage
+becomes more significant when we increase the number of time steps.
+
+Method
+
+Table 7: Inference computing cost of sparse-observation-based methods.
+DiffusionPDE (Ours) GraphPDE Shu et al. (2023) OFormer
+
+#Parameter (M)
+Inference time (s)
+GPU memory (GB)
+
+54
+140
+6.8
+
+1.3
+84
+3.6
+
+63
+180
+7.2
+
+1.6
+3.2
+0.1
+
+Further, we evaluate the inference runtimes on one single A40 GPU of vanilla full-observation-based
+methods and also the optimization time of them during the inference as introduced in Appendix H.
+The optimization runtimes are significantly slower, especially when using Fourier transforms.
+22
+
+Table 8: Average inference runtimes (in seconds) of full-observation-based methods with and without
+optimization.
+Method
+PINO FNO DeepONet PINNs
+Vanilla
+With Optimization
+
+K
+
+1.0e0
+6.7e2
+
+9.8e-1
+6.7e2
+
+7.4e-1
+3.5e1
+
+1.5e0
+3.7e1
+
+Robustness of DiffusionPDE
+
+We find that DiffusionPDE is robust against sparse noisy observation. In Fig. 16, we add Gaussian
+noise to the 500 observed points of Darcy Flow coefficients. Our DiffusionPDE can maintain a relative
+error of around 10% with a 15% noise level concerning the forward problem, and the recovered
+solutions are shown in Fig. 17. Baseline methods such as PINO also exhibit robustness against
+random noise under sparse observation conditions; this is attributed to their limited applicability to
+sparse observation problems, leading them to address the problem in a more randomized manner.
+
+Figure 16: Relative errors of recovered Darcy Flow solutions with sparse noisy observation.
+
+Forward
+
+Add Noise
+
+No Noise
+
+1% Noise
+
+3% Noise
+
+5% Noise
+
+Relative Error: 2.5%
+
+Relative Error: 6.3%
+
+Relative Error: 7.8%
+
+Relative Error: 7.4%
+
+10% Noise
+
+15% Noise
+
+Recovered Solutions
+
+Coefficients
+
+Clean Observations
+
+Relative Error: 7.6% Relative Error: 10.1%
+
+Figure 17: Recovered solutions for Darcy Flow with noisy observations.
+
+Robustness on Sampling Patterns Moreover, as mentioned in the main document, we investigate
+the robustness of DiffusionPDE on different sampling patterns of the observation points. Here,
+we address the forward problem of Darcy Flow using 500 observed coefficient points, which are
+non-uniformly concentrated on the left and right sides or are regularly distributed across the grid,
+as depicted in Fig. 18. Our results demonstrate that DiffusionPDE flexibly solves problems with
+arbitrary sparse observation locations within the spatial domain, without re-training the neural network
+model. However, the CFG method faces challenges when solving with varying sampling patterns,
+as demonstrated in Fig. 19. In this figure, we compare the reconstruction results of DiffusionPDE
+and Diffusion with CFG for the unbounded Navier-Stokes equation, where all observation points
+are located on the left side of the grid. The CFG approach struggles with this asymmetric sampling
+pattern, while DiffusionPDE maintains more accurate reconstructions.
+23
+
+Observed Coefficients
+
+Recovered Solutions
+
+Observed Coefficients
+
+Forward
+
+Recovered Solutions
+
+Observed Coefficients
+
+Forward
+
+Relative Error: 6.2%
+
+Recovered Solutions
+Forward
+
+Relative Error: 8.3%
+
+Relative Error: 2.3%
+
+Figure 18: Recovered solutions for Darcy Flow with observations sampled using non-uniform
+distributions.
+
+Ground Truth
+
+Forward
+y
+
+x
+
+DiffusionPDE
+
+Diffusion with CFG
+
+Final State
+
+Initial State
+
+Observations
+
+Relative Error: 24.7% Relative Error: 39.6%
+
+500 Random Points
+
+Figure 19: Comparison between DiffusionPDE and Diffusion CFG under different sampling patterns
+for non-bounded Navier-Stokes equation.
+
+Stochasticity Evaluation Since we employ a deterministic diffusion model, with partial observations as input, the only source of stochasticity or uncertainty in our approach arises from the initial
+random noise. To examine this, we conducted experiments to assess the impact of different noise
+seeds on both the initial and final states of the Navier-Stokes equations, as demonstrated in Fig. 20.
+Our findings indicate that the diffusion model exhibits some degree of uncertainty in its predictions,
+despite the deterministic nature of the underlying framework.
+Noise Seed 0
+Recover
+y
+
+Noise Seed 1
+
+Noise Seed 2
+
+Initial State
+
+Initial State
+
+Observations
+
+500 Random Points
+
+Final State
+
+x
+
+Figure 20: Different predictions of DiffusionPDE generated by different initial noise for non-bounded
+Navier-Stokes equation.
+
+L
+
+Solving Forward and Inverse Problems with Different Numbers of
+Observations
+
+We also investigate how our DiffusionPDE handles varying degrees of sparse observation. Experiments are conducted on the Darcy Flow, Poisson equation, Helmholtz equation, and non-bounded
+Navier-Stokes equation. We examine the results of DiffusionPDE in solving forward and inverse
+problems when there are 100, 300, 500, and 1000 random observations on a, u, or both a and u,
+as shown in Fig. 21. We have observed that the error of DiffusionPDE decreases as the number
+of sparse observations increases. Overall, we recover u better than a. DiffusionPDE can recover u
+with approximately 2% observation points at any side pretty well. DiffusionPDE is also capable of
+recovering both a and u with errors 1% ∼ 10% with approximately 6% observation points at any
+side for most PDE families. We also conclude that our DiffusionPDE becomes insensitive to the
+number of observations once more than 3% of the points are observed.
+24
+
+(a) Error rates for Darcy Flow and relative errors for other PDEs of recovered coefficients or initial states a.
+
+(b) Relative errors of recovered solutions or final states u.
+
+Figure 21: Error rate or relative error of both coefficients (or initial states) a and solutions (or final
+states) u with different numbers of observations.
+
+M
+
+Solving Forward and Inverse Problems across Varied Resolutions
+
+To evaluate the generalizability of DiffusionPDE, we implemented the model on various resolutions,
+including 64 × 64 and 256 × 256, while maintaining the same percentage of observed points. For
+resolutions of 64 × 64, 128 × 128, and 256 × 256, we observe 125, 500, and 2000 points on a or u
+respectively, which are approximately 3% for each resolution. Overall, DiffusionPDE is capable of
+handling different resolutions effectively. For instance, Table 9 presents the forward relative errors
+of the solution u and inverse error rates of the coefficient a for the Darcy Flow, demonstrating that
+DiffusionPDE performs consistently well with similar error rates across various resolutions.
+25
+
+Table 9: Forward relative errors and inverse error rates of Darcy Flow across different resolutions.
+Resolution Forward Relative Error Inverse Error Rate
+64 × 64
+128 × 128
+256 × 256
+
+N
+
+2.9%
+2.5%
+3.1%
+
+4.3%
+3.2%
+4.1%
+
+Comparison with Other Baselines
+
+We have compared the results using the RBF kernel [60], as shown in Fig. 22. For the forward process
+of solving the Poisson, Helmholtz, and Darcy Flow equations, the RBF kernel achieved solution
+errors of approximately 14.3%, 23.1%, and 18.4%, respectively, with 500 random observation points.
+However, when addressing the inverse problem, the errors increased significantly to 141.2%, 143.1%,
+and 34.0%, respectively. This increase in error is likely due to the inherent challenges of solving
+inverse problems with such a straightforward method.
+Ground Truth
+
+RBF
+
+Ground Truth
+
+Poisson (Inverse)
+
+Poisson (Forward)
+
+RBF
+
+Relative Error: 15.3%
+
+Relative Error: 140.7%
+
+Figure 22: Forward and Inverse Results of Poisson equation recovered by 500 observation points
+using RBF Kernel.
+Additionally, we compare our DiffusionPDE method with a single U-Net model. The U-Net is trained
+based on our EDM diffusion model, where we initially train it to map between 500 fixed input points
+and the full output space, as illustrated in Fig. 23. For the Navier-Stokes equation, the prediction of
+the final state results in an average test error of approximately 39%, which is significantly higher than
+the error produced by our diffusion model. Furthermore, when making predictions using 500 different
+sampling points, the relative error increases to approximately 49%. We also train another U-Net
+model to map between 500 random input points and the full output space, but this model results in a
+test error of 101%, indicating that the U-Net struggles to adapt to varying sampling patterns and fails
+to flexibly solve different configurations.
+UNet Trained on Fixed UNet Trained on Random
+Observation Points
+Observation Points
+
+DiffusionPDE
+
+Final State
+
+Ground Truth
+
+Relative Error: 6.5%
+
+Relative Error: 38.9%
+
+Relative Error: 100.9%
+
+Figure 23: Comparison between DiffusionPDE and U-Net regarding non-bounded Navier-Stokes
+equation.
+
+26
+
+

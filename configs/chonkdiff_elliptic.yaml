@@ -1,0 +1,60 @@
+benchmark:
+  nx: 63
+  domain_length: 1.0
+  kappa: 50.0
+  warmup_iterations: 5
+  forcing:
+    period_length: 0.5
+    lengthscale: 10.0
+    jitter: 1.0e-10
+  dataset:
+    train_size: 896
+    val_size: 128
+    seed: 42
+    out_path: "data/chonkdiff_elliptic_dataset.npz"
+
+oracle:
+  max_iterations: 64
+  tolerance: 1.0e-12
+  lambda_init: 1.0e-4
+  lambda_min: 1.0e-10
+  lambda_max: 1.0e8
+  lambda_decay: 0.5
+  lambda_inflate: 10.0
+  alpha_init: 1.0
+  alpha_decay: 0.5
+  min_alpha: 1.0e-6
+  line_search_steps: 8
+
+model:
+  hidden_channels: 64
+  num_blocks: 8
+  time_embedding_dim: 128
+
+diffusion:
+  timesteps: 100
+  beta_start: 1.0e-4
+  beta_end: 2.0e-2
+
+training:
+  batch_size: 64
+  epochs: 80
+  seed: 1234
+  learning_rate: 2.0e-4
+  weight_decay: 1.0e-4
+  gradient_clip: 1.0
+  num_workers: 0
+  checkpoint_dir: "outputs/chonkdiff"
+  pde_weight: 3.0e-5
+  bc_weight: 0.0
+  stage_a_fraction: 0.2
+  stage_b_fraction: 0.75
+
+sampling:
+  guidance_mode: "gn"
+  guidance_strength: 1.0e-3
+  guidance_start_fraction: 0.35
+  guidance_lambda: 1.0e-3
+  projector_iterations: 8
+  num_eval_samples: 32
+  seed: 123
